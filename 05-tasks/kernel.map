@@ -1,0 +1,151 @@
+
+There are no discarded input sections
+
+Memory Configuration
+
+Name             Origin             Length             Attributes
+*default*        0x00000000         0xffffffff
+
+Linker script and memory map
+
+LOAD /tmp/cctQAj27.o
+LOAD /tmp/cc1gZbum.o
+LOAD /tmp/ccROp4a9.o
+LOAD /tmp/cc5Vn1Fa.o
+LOAD /tmp/cc7D2gFd.o
+LOAD /tmp/cc1vVHD6.o
+LOAD /tmp/ccvYzIMf.o
+                0x80000000                        . = 0x80000000
+
+.text           0x80000000      0x918
+ *(.text.boot)
+ *(.text .text.*)
+ .text          0x80000000      0x108 /tmp/cctQAj27.o
+                0x80000000                boot
+                0x80000074                cpuid
+                0x8000007c                disable_interrupts
+                0x80000084                enable_interrupts
+                0x8000008c                context_switch
+ .text          0x80000108       0x50 /tmp/cc1gZbum.o
+                0x80000108                init_context
+ .text          0x80000158       0x78 /tmp/ccROp4a9.o
+                0x80000158                console_putc
+                0x8000018c                console_puts
+ .text          0x800001d0      0x2f4 /tmp/cc5Vn1Fa.o
+                0x800001d0                memset
+                0x80000200                memcpy
+                0x80000238                strcpy
+                0x8000027c                strcmp
+                0x800002c0                printf
+ .text          0x800004c4      0x144 /tmp/cc7D2gFd.o
+                0x800004c4                task_a
+                0x8000050c                task_b
+                0x80000554                task_c
+                0x8000059c                kernel_main
+ .text          0x80000608       0x74 /tmp/cc1vVHD6.o
+                0x80000608                acquire
+                0x8000064c                release
+ .text          0x8000067c      0x29c /tmp/ccvYzIMf.o
+                0x8000067c                current_task
+                0x800006b4                create_task
+                0x800007ac                scheduler
+                0x800008a0                yield
+
+.rodata         0x80000918       0xd1
+ *(.rodata .rodata.*)
+ .rodata.str1.4
+                0x80000918       0xd1 /tmp/cc5Vn1Fa.o
+                                 0x11 (size before relaxing)
+ .rodata.str1.4
+                0x800009e9       0x65 /tmp/cc7D2gFd.o
+ .rodata.str1.4
+                0x800009e9       0x55 /tmp/ccvYzIMf.o
+
+.eh_frame       0x800009ec      0x31c
+ .eh_frame      0x800009ec       0x38 /tmp/cc1gZbum.o
+ .eh_frame      0x80000a24       0x50 /tmp/ccROp4a9.o
+                                 0x64 (size before relaxing)
+ .eh_frame      0x80000a74      0x108 /tmp/cc5Vn1Fa.o
+                                0x11c (size before relaxing)
+ .eh_frame      0x80000b7c       0x80 /tmp/cc7D2gFd.o
+                                 0x94 (size before relaxing)
+ .eh_frame      0x80000bfc       0x54 /tmp/cc1vVHD6.o
+                                 0x68 (size before relaxing)
+ .eh_frame      0x80000c50       0xb8 /tmp/ccvYzIMf.o
+                                 0xcc (size before relaxing)
+
+.eh_frame_hdr   0x80000d08       0x9c
+ .eh_frame_hdr  0x80000d08       0x9c /tmp/cc1gZbum.o
+                0x80000d08                __GNU_EH_FRAME_HDR
+
+.rela.dyn       0x80000da4        0x0
+ .rela.text     0x80000da4        0x0 /tmp/cctQAj27.o
+
+.data           0x80000da4        0x0
+ *(.data .data.*)
+ .data          0x80000da4        0x0 /tmp/cctQAj27.o
+ .data          0x80000da4        0x0 /tmp/cc1gZbum.o
+ .data          0x80000da4        0x0 /tmp/ccROp4a9.o
+ .data          0x80000da4        0x0 /tmp/cc5Vn1Fa.o
+ .data          0x80000da4        0x0 /tmp/cc7D2gFd.o
+ .data          0x80000da4        0x0 /tmp/cc1vVHD6.o
+ .data          0x80000da4        0x0 /tmp/ccvYzIMf.o
+
+.bss            0x80000da4     0x80c8
+                0x80000da4                        __bss = .
+ *(.bss .bss.* .sbss .sbss.*)
+ .bss           0x80000da4        0x0 /tmp/cctQAj27.o
+ .bss           0x80000da4        0x0 /tmp/cc1gZbum.o
+ .bss           0x80000da4        0x0 /tmp/ccROp4a9.o
+ .bss           0x80000da4        0x0 /tmp/cc5Vn1Fa.o
+ .bss           0x80000da4        0x0 /tmp/cc7D2gFd.o
+ .bss           0x80000da4        0x0 /tmp/cc1vVHD6.o
+ .bss           0x80000da4     0x80c0 /tmp/ccvYzIMf.o
+ .sbss          0x80008e64        0x8 /tmp/ccvYzIMf.o
+                0x80008e6c                        __bss_end = .
+                0x80008e6c                        . = ALIGN (0x4)
+                0x80008e6c                        __stack0 = .
+                0x80028e6c                        . = (. + 0x20000)
+                0x80028e6c                        __kernel_end = .
+OUTPUT(kernel elf32-littleriscv)
+
+.riscv.attributes
+                0x00000000       0x3c
+ .riscv.attributes
+                0x00000000       0x3a /tmp/cctQAj27.o
+ .riscv.attributes
+                0x0000003a       0x38 /tmp/cc1gZbum.o
+ .riscv.attributes
+                0x00000072       0x38 /tmp/ccROp4a9.o
+ .riscv.attributes
+                0x000000aa       0x38 /tmp/cc5Vn1Fa.o
+ .riscv.attributes
+                0x000000e2       0x38 /tmp/cc7D2gFd.o
+ .riscv.attributes
+                0x0000011a       0x38 /tmp/cc1vVHD6.o
+ .riscv.attributes
+                0x00000152       0x38 /tmp/ccvYzIMf.o
+
+.comment        0x00000000       0x2b
+ .comment       0x00000000       0x2b /tmp/cc1gZbum.o
+                                 0x2c (size before relaxing)
+ .comment       0x0000002b       0x2c /tmp/ccROp4a9.o
+ .comment       0x0000002b       0x2c /tmp/cc5Vn1Fa.o
+ .comment       0x0000002b       0x2c /tmp/cc7D2gFd.o
+ .comment       0x0000002b       0x2c /tmp/cc1vVHD6.o
+ .comment       0x0000002b       0x2c /tmp/ccvYzIMf.o
+
+.note.GNU-stack
+                0x00000000        0x0
+ .note.GNU-stack
+                0x00000000        0x0 /tmp/cc1gZbum.o
+ .note.GNU-stack
+                0x00000000        0x0 /tmp/ccROp4a9.o
+ .note.GNU-stack
+                0x00000000        0x0 /tmp/cc5Vn1Fa.o
+ .note.GNU-stack
+                0x00000000        0x0 /tmp/cc7D2gFd.o
+ .note.GNU-stack
+                0x00000000        0x0 /tmp/cc1vVHD6.o
+ .note.GNU-stack
+                0x00000000        0x0 /tmp/ccvYzIMf.o

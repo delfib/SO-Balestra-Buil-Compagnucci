@@ -1,0 +1,738 @@
+
+kernel:     file format elf32-littleriscv
+
+
+Disassembly of section .text:
+
+80000000 <boot>:
+# Boot run in M-mode
+
+.global boot
+boot:
+    # save mhartid in tp register
+    csrr tp, mhartid
+80000000:	f1402273          	csrr	tp,mhartid
+
+    # set stack pointer for each cpu
+    la sp, __stack0     # sp = __stack0
+80000004:	00001117          	auipc	sp,0x1
+80000008:	5e410113          	addi	sp,sp,1508 # 800015e8 <__bss_end>
+    li t0, 1024*4       # t0 = 4096
+8000000c:	000012b7          	lui	t0,0x1
+    addi t1, tp, 1      # t1 = mhartid + 1
+80000010:	00120313          	addi	t1,tp,1 # 1 <boot-0x7fffffff>
+    mul t0, t0, t1      # t0 = 4096 * (mhartid + 1)
+80000014:	026282b3          	mul	t0,t0,t1
+    add sp, sp, t0      # sp = sp + (4096 * (mhartid + 1))
+80000018:	00510133          	add	sp,sp,t0
+
+    # Load address of 'supervisor' into t0 and set mepc
+    la      t0, supervisor
+8000001c:	00000297          	auipc	t0,0x0
+80000020:	05028293          	addi	t0,t0,80 # 8000006c <supervisor>
+    csrw    mepc, t0
+80000024:	34129073          	csrw	mepc,t0
+
+    # Set up PMP to allow S-mode and U-mode full access to memory
+    li      t5, 0x1F               # NAPOT + R/W/X permissions
+80000028:	01f00f13          	li	t5,31
+    csrw    pmpcfg0, t5            # Write to pmpcfg0
+8000002c:	3a0f1073          	csrw	pmpcfg0,t5
+    li      t6, -1                 # All ones to cover entire address space
+80000030:	fff00f93          	li	t6,-1
+    csrw    pmpaddr0, t6           # Write to pmpaddr0
+80000034:	3b0f9073          	csrw	pmpaddr0,t6
+
+    # Correctly set MPP to Supervisor Mode
+    csrr    t2, mstatus            # Read mstatus into t2
+80000038:	300023f3          	csrr	t2,mstatus
+    li      t3, ~(0x3 << 11)       # Mask to clear MPP bits
+8000003c:	ffffee37          	lui	t3,0xffffe
+80000040:	7ffe0e13          	addi	t3,t3,2047 # ffffe7ff <__kernel_end+0x7ffdd217>
+    and     t2, t2, t3             # Clear MPP bits
+80000044:	01c3f3b3          	and	t2,t2,t3
+    li      t4, (0x1 << 11)        # MPP = 01 (Supervisor Mode)
+80000048:	00001eb7          	lui	t4,0x1
+8000004c:	800e8e93          	addi	t4,t4,-2048 # 800 <boot-0x7ffff800>
+    or      t2, t2, t4             # Set MPP bits to 01
+80000050:	01d3e3b3          	or	t2,t2,t4
+    csrw    mstatus, t2            # Write back to mstatus
+80000054:	30039073          	csrw	mstatus,t2
+
+    # Delegate interrupts and exceptions to S-mode
+    li      t5, 0xffff
+80000058:	00010f37          	lui	t5,0x10
+8000005c:	ffff0f13          	addi	t5,t5,-1 # ffff <boot-0x7fff0001>
+    csrs    medeleg, t5
+80000060:	302f2073          	csrs	medeleg,t5
+    csrs    mideleg, t5
+80000064:	303f2073          	csrs	mideleg,t5
+
+    mret
+80000068:	30200073          	mret
+
+8000006c <supervisor>:
+
+# supervisor entry point (after mret)
+supervisor:
+    # Disable virtual memory by setting satp to zero
+    csrw    satp, x0
+8000006c:	18001073          	csrw	satp,zero
+
+    # call kernel_main() in supervisor mode
+    call kernel_main
+80000070:	160000ef          	jal	ra,800001d0 <kernel_main>
+
+80000074 <cpuid>:
+
+# cpuid(): Get CPU (hart) id
+.global cpuid
+cpuid:
+    mv a0, tp
+80000074:	00020513          	mv	a0,tp
+    ret
+80000078:	00008067          	ret
+
+8000007c <disable_interrupts>:
+
+# disable_interrupts(void)
+.global disable_interrupts
+disable_interrupts:
+    csrci sstatus, 0x2
+8000007c:	10017073          	csrci	sstatus,2
+    ret
+80000080:	00008067          	ret
+
+80000084 <enable_interrupts>:
+
+# enable_interrupts(void)
+.global enable_interrupts
+enable_interrupts:
+    csrsi sstatus, 0x2
+80000084:	10016073          	csrsi	sstatus,2
+    ret
+80000088:	00008067          	ret
+
+8000008c <context_switch>:
+# 3. switch to next task stack: sp = *next_sp
+# 4. restore (pop) cpu register saved values from next stack thread
+.global context_switch
+context_switch:
+    # push callee saved registers and task pc (ra) 
+    addi sp, sp, -13 * 4
+8000008c:	fcc10113          	addi	sp,sp,-52
+    sw ra,  0  * 4(sp)
+80000090:	00112023          	sw	ra,0(sp)
+    sw s0,  1  * 4(sp)
+80000094:	00812223          	sw	s0,4(sp)
+    sw s1,  2  * 4(sp)
+80000098:	00912423          	sw	s1,8(sp)
+    sw s2,  3  * 4(sp)
+8000009c:	01212623          	sw	s2,12(sp)
+    sw s3,  4  * 4(sp)
+800000a0:	01312823          	sw	s3,16(sp)
+    sw s4,  5  * 4(sp)
+800000a4:	01412a23          	sw	s4,20(sp)
+    sw s5,  6  * 4(sp)
+800000a8:	01512c23          	sw	s5,24(sp)
+    sw s6,  7  * 4(sp)
+800000ac:	01612e23          	sw	s6,28(sp)
+    sw s7,  8  * 4(sp)
+800000b0:	03712023          	sw	s7,32(sp)
+    sw s8,  9  * 4(sp)
+800000b4:	03812223          	sw	s8,36(sp)
+    sw s9,  10 * 4(sp)
+800000b8:	03912423          	sw	s9,40(sp)
+    sw s10, 11 * 4(sp)
+800000bc:	03a12623          	sw	s10,44(sp)
+    sw s11, 12 * 4(sp)
+800000c0:	03b12823          	sw	s11,48(sp)
+
+    # update prev_sp and change to next_sp
+    sw sp, (a0)         # *prev_sp = sp;
+800000c4:	00252023          	sw	sp,0(a0)
+    lw sp, (a1)         # sp = *next_sp
+800000c8:	0005a103          	lw	sp,0(a1)
+
+    # restore register values from next stack
+    lw ra,  0  * 4(sp)
+800000cc:	00012083          	lw	ra,0(sp)
+    lw s0,  1  * 4(sp)
+800000d0:	00412403          	lw	s0,4(sp)
+    lw s1,  2  * 4(sp)
+800000d4:	00812483          	lw	s1,8(sp)
+    lw s2,  3  * 4(sp)
+800000d8:	00c12903          	lw	s2,12(sp)
+    lw s3,  4  * 4(sp)
+800000dc:	01012983          	lw	s3,16(sp)
+    lw s4,  5  * 4(sp)
+800000e0:	01412a03          	lw	s4,20(sp)
+    lw s5,  6  * 4(sp)
+800000e4:	01812a83          	lw	s5,24(sp)
+    lw s6,  7  * 4(sp)
+800000e8:	01c12b03          	lw	s6,28(sp)
+    lw s7,  8  * 4(sp)
+800000ec:	02012b83          	lw	s7,32(sp)
+    lw s8,  9  * 4(sp)
+800000f0:	02412c03          	lw	s8,36(sp)
+    lw s9,  10 * 4(sp)
+800000f4:	02812c83          	lw	s9,40(sp)
+    lw s10, 11 * 4(sp)
+800000f8:	02c12d03          	lw	s10,44(sp)
+    lw s11, 12 * 4(sp)
+800000fc:	03012d83          	lw	s11,48(sp)
+    addi sp, sp, 13 * 4
+80000100:	03410113          	addi	sp,sp,52
+    ret
+80000104:	00008067          	ret
+
+80000108 <init_task_context>:
+    *--sp = 0;  // s4
+    *--sp = 0;  // s3
+    *--sp = 0;  // s2
+    *--sp = 0;  // s1
+    *--sp = 0;  // s0
+    *--sp = pc; // ra
+80000108:	fca5a623          	sw	a0,-52(a1)
+    *--sp = 0;  // s11
+8000010c:	fe05ae23          	sw	zero,-4(a1)
+    *--sp = 0;  // s10
+80000110:	fe05ac23          	sw	zero,-8(a1)
+    *--sp = 0;  // s9
+80000114:	fe05aa23          	sw	zero,-12(a1)
+    *--sp = 0;  // s8
+80000118:	fe05a823          	sw	zero,-16(a1)
+    *--sp = 0;  // s7
+8000011c:	fe05a623          	sw	zero,-20(a1)
+    *--sp = 0;  // s6
+80000120:	fe05a423          	sw	zero,-24(a1)
+    *--sp = 0;  // s5
+80000124:	fe05a223          	sw	zero,-28(a1)
+    *--sp = 0;  // s4
+80000128:	fe05a023          	sw	zero,-32(a1)
+    *--sp = 0;  // s3
+8000012c:	fc05ae23          	sw	zero,-36(a1)
+    *--sp = 0;  // s2
+80000130:	fc05ac23          	sw	zero,-40(a1)
+    *--sp = 0;  // s1
+80000134:	fc05aa23          	sw	zero,-44(a1)
+    *--sp = 0;  // s0
+80000138:	fc05a823          	sw	zero,-48(a1)
+    return sp;
+}
+8000013c:	fcc58513          	addi	a0,a1,-52
+80000140:	00008067          	ret
+
+80000144 <console_putc>:
+#define UART_STATUS_EMPTY 0x40
+
+int console_putc(char ch) 
+{
+    // wait for UART transmitter register empty
+	while ((*UART_LSR & UART_STATUS_EMPTY) == 0)
+80000144:	100006b7          	lui	a3,0x10000
+80000148:	0056c703          	lbu	a4,5(a3) # 10000005 <boot-0x6ffffffb>
+8000014c:	04077713          	andi	a4,a4,64
+80000150:	00071463          	bnez	a4,80000158 <console_putc+0x14>
+80000154:	0000006f          	j	80000154 <console_putc+0x10>
+        ;
+    // write character to UART THR to start transmission
+	return *UART_THR = ch;
+80000158:	00a68023          	sb	a0,0(a3)
+}
+8000015c:	00008067          	ret
+
+80000160 <console_puts>:
+
+// write string to console
+void console_puts(const char *s) 
+{
+	while (*s)
+80000160:	00054783          	lbu	a5,0(a0)
+80000164:	02078663          	beqz	a5,80000190 <console_puts+0x30>
+	while ((*UART_LSR & UART_STATUS_EMPTY) == 0)
+80000168:	10000737          	lui	a4,0x10000
+8000016c:	00574703          	lbu	a4,5(a4) # 10000005 <boot-0x6ffffffb>
+	return *UART_THR = ch;
+80000170:	100006b7          	lui	a3,0x10000
+80000174:	04077713          	andi	a4,a4,64
+        console_putc(*s++);
+80000178:	00150513          	addi	a0,a0,1
+	while ((*UART_LSR & UART_STATUS_EMPTY) == 0)
+8000017c:	00071463          	bnez	a4,80000184 <console_puts+0x24>
+80000180:	0000006f          	j	80000180 <console_puts+0x20>
+	return *UART_THR = ch;
+80000184:	00f68023          	sb	a5,0(a3) # 10000000 <boot-0x70000000>
+	while (*s)
+80000188:	00054783          	lbu	a5,0(a0)
+8000018c:	fe0796e3          	bnez	a5,80000178 <console_puts+0x18>
+80000190:	00008067          	ret
+
+80000194 <task_a>:
+    return init_task_context(pc, sp);
+}
+
+// task entry function
+void task_a(void)
+{
+80000194:	ff010113          	addi	sp,sp,-16
+80000198:	00112623          	sw	ra,12(sp)
+    printf("Task A on cpu %d\n", cpuid());
+8000019c:	ed9ff0ef          	jal	ra,80000074 <cpuid>
+800001a0:	00050593          	mv	a1,a0
+800001a4:	00000517          	auipc	a0,0x0
+800001a8:	3ac50513          	addi	a0,a0,940 # 80000550 <release+0x10>
+800001ac:	154000ef          	jal	ra,80000300 <printf>
+
+    // resume main thread
+    context_switch((uint32*) &task_a_sp, (uint32*) &main_thread_sp);
+}
+800001b0:	00c12083          	lw	ra,12(sp)
+    context_switch((uint32*) &task_a_sp, (uint32*) &main_thread_sp);
+800001b4:	00001597          	auipc	a1,0x1
+800001b8:	42c58593          	addi	a1,a1,1068 # 800015e0 <main_thread_sp>
+800001bc:	00001517          	auipc	a0,0x1
+800001c0:	42850513          	addi	a0,a0,1064 # 800015e4 <task_a_sp>
+}
+800001c4:	01010113          	addi	sp,sp,16
+    context_switch((uint32*) &task_a_sp, (uint32*) &main_thread_sp);
+800001c8:	ec5ff06f          	j	8000008c <context_switch>
+
+800001cc <create_task>:
+    return init_task_context(pc, sp);
+800001cc:	f3dff06f          	j	80000108 <init_task_context>
+
+800001d0 <kernel_main>:
+
+// main kernel function. boot() in arch.c calls it
+void kernel_main(void) {
+800001d0:	ff010113          	addi	sp,sp,-16
+800001d4:	00112623          	sw	ra,12(sp)
+800001d8:	00812423          	sw	s0,8(sp)
+    if (cpuid() == 0) {
+800001dc:	e99ff0ef          	jal	ra,80000074 <cpuid>
+800001e0:	02050063          	beqz	a0,80000200 <kernel_main+0x30>
+        // resume task_a
+        context_switch((uint32*) &main_thread_sp, (uint32*) &task_a_sp);
+    
+        printf("In kernel initial thread again!\n");
+    }
+    stop();
+800001e4:	02700613          	li	a2,39
+800001e8:	00000597          	auipc	a1,0x0
+800001ec:	3bc58593          	addi	a1,a1,956 # 800005a4 <release+0x64>
+800001f0:	00000517          	auipc	a0,0x0
+800001f4:	3c050513          	addi	a0,a0,960 # 800005b0 <release+0x70>
+800001f8:	108000ef          	jal	ra,80000300 <printf>
+800001fc:	0000006f          	j	800001fc <kernel_main+0x2c>
+    return init_task_context(pc, sp);
+80000200:	00001597          	auipc	a1,0x1
+80000204:	3e058593          	addi	a1,a1,992 # 800015e0 <main_thread_sp>
+80000208:	00000517          	auipc	a0,0x0
+8000020c:	f8c50513          	addi	a0,a0,-116 # 80000194 <task_a>
+80000210:	ef9ff0ef          	jal	ra,80000108 <init_task_context>
+80000214:	00050793          	mv	a5,a0
+        task_a_sp = create_task((uint32) task_a,
+80000218:	00001417          	auipc	s0,0x1
+8000021c:	3cc40413          	addi	s0,s0,972 # 800015e4 <task_a_sp>
+        printf("In kernel_main() thread\n");
+80000220:	00000517          	auipc	a0,0x0
+80000224:	34450513          	addi	a0,a0,836 # 80000564 <release+0x24>
+        task_a_sp = create_task((uint32) task_a,
+80000228:	00f42023          	sw	a5,0(s0)
+        printf("In kernel_main() thread\n");
+8000022c:	0d4000ef          	jal	ra,80000300 <printf>
+        context_switch((uint32*) &main_thread_sp, (uint32*) &task_a_sp);
+80000230:	00040593          	mv	a1,s0
+80000234:	00001517          	auipc	a0,0x1
+80000238:	3ac50513          	addi	a0,a0,940 # 800015e0 <main_thread_sp>
+8000023c:	e51ff0ef          	jal	ra,8000008c <context_switch>
+        printf("In kernel initial thread again!\n");
+80000240:	00000517          	auipc	a0,0x0
+80000244:	34050513          	addi	a0,a0,832 # 80000580 <release+0x40>
+80000248:	0b8000ef          	jal	ra,80000300 <printf>
+8000024c:	f99ff06f          	j	800001e4 <kernel_main+0x14>
+
+80000250 <memset>:
+#include "console.h"
+#include "klib.h"
+
+void *memset(void *buf, char c, unsigned int n) {
+    unsigned char *p = (unsigned char *) buf;
+    while (n--)
+80000250:	00060c63          	beqz	a2,80000268 <memset+0x18>
+80000254:	00c50633          	add	a2,a0,a2
+    unsigned char *p = (unsigned char *) buf;
+80000258:	00050793          	mv	a5,a0
+        *p++ = c;
+8000025c:	00178793          	addi	a5,a5,1
+80000260:	feb78fa3          	sb	a1,-1(a5)
+    while (n--)
+80000264:	fec79ce3          	bne	a5,a2,8000025c <memset+0xc>
+    return buf;
+}
+80000268:	00008067          	ret
+
+8000026c <memcpy>:
+
+void *memcpy(void *dst, const void *src, size_t n) {
+    unsigned char *d = (unsigned char *) dst;
+    const unsigned char *s = (const unsigned char *) src;
+    while (n--)
+8000026c:	02060063          	beqz	a2,8000028c <memcpy+0x20>
+80000270:	00c50633          	add	a2,a0,a2
+    unsigned char *d = (unsigned char *) dst;
+80000274:	00050793          	mv	a5,a0
+        *d++ = *s++;
+80000278:	0005c703          	lbu	a4,0(a1)
+8000027c:	00178793          	addi	a5,a5,1
+80000280:	00158593          	addi	a1,a1,1
+80000284:	fee78fa3          	sb	a4,-1(a5)
+    while (n--)
+80000288:	fec798e3          	bne	a5,a2,80000278 <memcpy+0xc>
+    return dst;
+}
+8000028c:	00008067          	ret
+
+80000290 <strcpy>:
+
+char *strcpy(char *dst, const char *src) {
+    char *d = dst;
+    while (*src)
+80000290:	0005c783          	lbu	a5,0(a1)
+    char *d = dst;
+80000294:	00050713          	mv	a4,a0
+    while (*src)
+80000298:	00078c63          	beqz	a5,800002b0 <strcpy+0x20>
+        *d++ = *src++;
+8000029c:	00f70023          	sb	a5,0(a4)
+    while (*src)
+800002a0:	0015c783          	lbu	a5,1(a1)
+        *d++ = *src++;
+800002a4:	00158593          	addi	a1,a1,1
+800002a8:	00170713          	addi	a4,a4,1
+    while (*src)
+800002ac:	fe0798e3          	bnez	a5,8000029c <strcpy+0xc>
+    *d = '\0';
+800002b0:	00070023          	sb	zero,0(a4)
+    return dst;
+}
+800002b4:	00008067          	ret
+
+800002b8 <strcmp>:
+
+int strcmp(const char *s1, const char *s2) {
+    while (*s1 && *s2) {
+800002b8:	00054783          	lbu	a5,0(a0)
+800002bc:	00079c63          	bnez	a5,800002d4 <strcmp+0x1c>
+800002c0:	0380006f          	j	800002f8 <strcmp+0x40>
+        if (*s1 != *s2)
+800002c4:	02f71063          	bne	a4,a5,800002e4 <strcmp+0x2c>
+    while (*s1 && *s2) {
+800002c8:	00054783          	lbu	a5,0(a0)
+800002cc:	02078063          	beqz	a5,800002ec <strcmp+0x34>
+            break;
+        s1++;
+        s2++;
+800002d0:	00068593          	mv	a1,a3
+    while (*s1 && *s2) {
+800002d4:	0005c703          	lbu	a4,0(a1)
+        s1++;
+800002d8:	00150513          	addi	a0,a0,1
+        s2++;
+800002dc:	00158693          	addi	a3,a1,1
+    while (*s1 && *s2) {
+800002e0:	fe0712e3          	bnez	a4,800002c4 <strcmp+0xc>
+    }
+
+    return *(unsigned char *)s1 - *(unsigned char *)s2;
+}
+800002e4:	40e78533          	sub	a0,a5,a4
+800002e8:	00008067          	ret
+    return *(unsigned char *)s1 - *(unsigned char *)s2;
+800002ec:	0015c703          	lbu	a4,1(a1)
+}
+800002f0:	40e78533          	sub	a0,a5,a4
+800002f4:	00008067          	ret
+    return *(unsigned char *)s1 - *(unsigned char *)s2;
+800002f8:	0005c703          	lbu	a4,0(a1)
+800002fc:	fe9ff06f          	j	800002e4 <strcmp+0x2c>
+
+80000300 <printf>:
+inline void putchar(char c)
+{
+    console_putc(c);
+}
+
+void printf(const char *fmt, ...) {
+80000300:	fa010113          	addi	sp,sp,-96
+80000304:	02812c23          	sw	s0,56(sp)
+80000308:	04f12a23          	sw	a5,84(sp)
+8000030c:	02112e23          	sw	ra,60(sp)
+80000310:	02912a23          	sw	s1,52(sp)
+80000314:	03212823          	sw	s2,48(sp)
+80000318:	03312623          	sw	s3,44(sp)
+8000031c:	03412423          	sw	s4,40(sp)
+80000320:	03512223          	sw	s5,36(sp)
+80000324:	03612023          	sw	s6,32(sp)
+80000328:	01712e23          	sw	s7,28(sp)
+8000032c:	01812c23          	sw	s8,24(sp)
+80000330:	01912a23          	sw	s9,20(sp)
+80000334:	01a12823          	sw	s10,16(sp)
+80000338:	04b12223          	sw	a1,68(sp)
+8000033c:	04c12423          	sw	a2,72(sp)
+80000340:	04d12623          	sw	a3,76(sp)
+80000344:	04e12823          	sw	a4,80(sp)
+80000348:	05012c23          	sw	a6,88(sp)
+8000034c:	05112e23          	sw	a7,92(sp)
+80000350:	00050413          	mv	s0,a0
+    va_list vargs;
+    va_start(vargs, fmt);
+    while (*fmt) {
+80000354:	00054503          	lbu	a0,0(a0)
+    va_start(vargs, fmt);
+80000358:	04410793          	addi	a5,sp,68
+8000035c:	00f12623          	sw	a5,12(sp)
+    while (*fmt) {
+80000360:	06050863          	beqz	a0,800003d0 <printf+0xd0>
+        if (*fmt == '%') {
+80000364:	02500913          	li	s2,37
+            fmt++;
+            switch (*fmt) {
+80000368:	06400993          	li	s3,100
+                        putchar('-');
+                        value = -value;
+                    }
+
+                    int divisor = 1;
+                    while (value / divisor > 9)
+8000036c:	00900a13          	li	s4,9
+                        divisor *= 10;
+
+                    while (divisor > 0) {
+                        putchar('0' + value / divisor);
+                        value %= divisor;
+                        divisor /= 10;
+80000370:	00a00b93          	li	s7,10
+            switch (*fmt) {
+80000374:	07300c93          	li	s9,115
+80000378:	07800c13          	li	s8,120
+8000037c:	00000b17          	auipc	s6,0x0
+80000380:	250b0b13          	addi	s6,s6,592 # 800005cc <release+0x8c>
+
+                    break;
+                }
+                case 'x': {
+                    int value = va_arg(vargs, int);
+                    for (int i = 7; i >= 0; i--) {
+80000384:	ffc00a93          	li	s5,-4
+80000388:	02c0006f          	j	800003b4 <printf+0xb4>
+            switch (*fmt) {
+8000038c:	00144783          	lbu	a5,1(s0)
+80000390:	0b378a63          	beq	a5,s3,80000444 <printf+0x144>
+80000394:	06f9ea63          	bltu	s3,a5,80000408 <printf+0x108>
+80000398:	10078c63          	beqz	a5,800004b0 <printf+0x1b0>
+8000039c:	01279663          	bne	a5,s2,800003a8 <printf+0xa8>
+    console_putc(c);
+800003a0:	02500513          	li	a0,37
+800003a4:	da1ff0ef          	jal	ra,80000144 <console_putc>
+    while (*fmt) {
+800003a8:	0014c503          	lbu	a0,1(s1)
+            }
+        } else {
+            putchar(*fmt);
+        }
+
+        fmt++;
+800003ac:	00148413          	addi	s0,s1,1
+    while (*fmt) {
+800003b0:	02050063          	beqz	a0,800003d0 <printf+0xd0>
+            fmt++;
+800003b4:	00140493          	addi	s1,s0,1
+        if (*fmt == '%') {
+800003b8:	fd250ae3          	beq	a0,s2,8000038c <printf+0x8c>
+}
+800003bc:	00040493          	mv	s1,s0
+    console_putc(c);
+800003c0:	d85ff0ef          	jal	ra,80000144 <console_putc>
+    while (*fmt) {
+800003c4:	0014c503          	lbu	a0,1(s1)
+        fmt++;
+800003c8:	00148413          	addi	s0,s1,1
+    while (*fmt) {
+800003cc:	fe0514e3          	bnez	a0,800003b4 <printf+0xb4>
+    }
+
+end:
+    va_end(vargs);
+}
+800003d0:	03c12083          	lw	ra,60(sp)
+800003d4:	03812403          	lw	s0,56(sp)
+800003d8:	03412483          	lw	s1,52(sp)
+800003dc:	03012903          	lw	s2,48(sp)
+800003e0:	02c12983          	lw	s3,44(sp)
+800003e4:	02812a03          	lw	s4,40(sp)
+800003e8:	02412a83          	lw	s5,36(sp)
+800003ec:	02012b03          	lw	s6,32(sp)
+800003f0:	01c12b83          	lw	s7,28(sp)
+800003f4:	01812c03          	lw	s8,24(sp)
+800003f8:	01412c83          	lw	s9,20(sp)
+800003fc:	01012d03          	lw	s10,16(sp)
+80000400:	06010113          	addi	sp,sp,96
+80000404:	00008067          	ret
+            switch (*fmt) {
+80000408:	0b978a63          	beq	a5,s9,800004bc <printf+0x1bc>
+8000040c:	f9879ee3          	bne	a5,s8,800003a8 <printf+0xa8>
+                    int value = va_arg(vargs, int);
+80000410:	00c12783          	lw	a5,12(sp)
+80000414:	01c00d13          	li	s10,28
+80000418:	0007a403          	lw	s0,0(a5)
+8000041c:	00478793          	addi	a5,a5,4
+80000420:	00f12623          	sw	a5,12(sp)
+                        int nibble = (value >> (i * 4)) & 0xf;
+80000424:	41a457b3          	sra	a5,s0,s10
+80000428:	00f7f793          	andi	a5,a5,15
+                        putchar("0123456789abcdef"[nibble]);
+8000042c:	00fb07b3          	add	a5,s6,a5
+    console_putc(c);
+80000430:	0007c503          	lbu	a0,0(a5)
+                    for (int i = 7; i >= 0; i--) {
+80000434:	ffcd0d13          	addi	s10,s10,-4
+    console_putc(c);
+80000438:	d0dff0ef          	jal	ra,80000144 <console_putc>
+                    for (int i = 7; i >= 0; i--) {
+8000043c:	ff5d14e3          	bne	s10,s5,80000424 <printf+0x124>
+80000440:	f69ff06f          	j	800003a8 <printf+0xa8>
+                    int value = va_arg(vargs, int);
+80000444:	00c12783          	lw	a5,12(sp)
+80000448:	0007ad03          	lw	s10,0(a5)
+8000044c:	00478793          	addi	a5,a5,4
+80000450:	00f12623          	sw	a5,12(sp)
+                    if (value < 0) {
+80000454:	080d4a63          	bltz	s10,800004e8 <printf+0x1e8>
+                    while (value / divisor > 9)
+80000458:	0baa5063          	bge	s4,s10,800004f8 <printf+0x1f8>
+                    int divisor = 1;
+8000045c:	00100413          	li	s0,1
+                        divisor *= 10;
+80000460:	00241793          	slli	a5,s0,0x2
+80000464:	00878433          	add	s0,a5,s0
+80000468:	00141413          	slli	s0,s0,0x1
+                    while (value / divisor > 9)
+8000046c:	028d47b3          	div	a5,s10,s0
+80000470:	fefa48e3          	blt	s4,a5,80000460 <printf+0x160>
+                        putchar('0' + value / divisor);
+80000474:	028d4533          	div	a0,s10,s0
+80000478:	03050513          	addi	a0,a0,48
+    console_putc(c);
+8000047c:	0ff57513          	zext.b	a0,a0
+80000480:	cc5ff0ef          	jal	ra,80000144 <console_putc>
+                        value %= divisor;
+80000484:	028d6d33          	rem	s10,s10,s0
+                        divisor /= 10;
+80000488:	03744433          	div	s0,s0,s7
+                    while (divisor > 0) {
+8000048c:	f0040ee3          	beqz	s0,800003a8 <printf+0xa8>
+                        putchar('0' + value / divisor);
+80000490:	028d4533          	div	a0,s10,s0
+80000494:	03050513          	addi	a0,a0,48
+    console_putc(c);
+80000498:	0ff57513          	zext.b	a0,a0
+8000049c:	ca9ff0ef          	jal	ra,80000144 <console_putc>
+                        value %= divisor;
+800004a0:	028d6d33          	rem	s10,s10,s0
+                        divisor /= 10;
+800004a4:	03744433          	div	s0,s0,s7
+                    while (divisor > 0) {
+800004a8:	fc0416e3          	bnez	s0,80000474 <printf+0x174>
+800004ac:	efdff06f          	j	800003a8 <printf+0xa8>
+    console_putc(c);
+800004b0:	02500513          	li	a0,37
+800004b4:	c91ff0ef          	jal	ra,80000144 <console_putc>
+                    goto end;
+800004b8:	f19ff06f          	j	800003d0 <printf+0xd0>
+                    const char *s = va_arg(vargs, const char *);
+800004bc:	00c12783          	lw	a5,12(sp)
+800004c0:	0007a403          	lw	s0,0(a5)
+800004c4:	00478793          	addi	a5,a5,4
+800004c8:	00f12623          	sw	a5,12(sp)
+                    while (*s) {
+800004cc:	00044503          	lbu	a0,0(s0)
+800004d0:	ec050ce3          	beqz	a0,800003a8 <printf+0xa8>
+                        s++;
+800004d4:	00140413          	addi	s0,s0,1
+    console_putc(c);
+800004d8:	c6dff0ef          	jal	ra,80000144 <console_putc>
+                    while (*s) {
+800004dc:	00044503          	lbu	a0,0(s0)
+800004e0:	fe051ae3          	bnez	a0,800004d4 <printf+0x1d4>
+800004e4:	ec5ff06f          	j	800003a8 <printf+0xa8>
+    console_putc(c);
+800004e8:	02d00513          	li	a0,45
+800004ec:	c59ff0ef          	jal	ra,80000144 <console_putc>
+                        value = -value;
+800004f0:	41a00d33          	neg	s10,s10
+800004f4:	f65ff06f          	j	80000458 <printf+0x158>
+                        putchar('0' + value / divisor);
+800004f8:	030d0513          	addi	a0,s10,48
+    console_putc(c);
+800004fc:	0ff57513          	zext.b	a0,a0
+80000500:	c45ff0ef          	jal	ra,80000144 <console_putc>
+                    while (divisor > 0) {
+80000504:	ea5ff06f          	j	800003a8 <printf+0xa8>
+
+80000508 <acquire>:
+#include "spinlock.h"
+#include "arch.h"
+
+void acquire(spinlock *lk)
+{
+80000508:	ff010113          	addi	sp,sp,-16
+8000050c:	00812423          	sw	s0,8(sp)
+80000510:	00112623          	sw	ra,12(sp)
+80000514:	00050413          	mv	s0,a0
+    // disable interrupts to avoid deadlock.
+    disable_interrupts();
+80000518:	b65ff0ef          	jal	ra,8000007c <disable_interrupts>
+
+    // On RISC-V, sync_lock_test_and_set turns into an atomic swap:
+    //   a5 = 1
+    //   s1 = &lk->locked
+    //   amoswap.w.aq a5, a5, (s1)
+    while(__sync_lock_test_and_set(lk, 1) != 0)
+8000051c:	00100713          	li	a4,1
+80000520:	00070793          	mv	a5,a4
+80000524:	0cf427af          	amoswap.w.aq	a5,a5,(s0)
+80000528:	fe079ce3          	bnez	a5,80000520 <acquire+0x18>
+
+    // Tell the C compiler and the processor to not move loads or stores
+    // past this point, to ensure that the critical section's memory
+    // references happen strictly after the lock is acquired.
+    // On RISC-V, this emits a fence instruction.
+    __sync_synchronize();
+8000052c:	0ff0000f          	fence
+}
+80000530:	00c12083          	lw	ra,12(sp)
+80000534:	00812403          	lw	s0,8(sp)
+80000538:	01010113          	addi	sp,sp,16
+8000053c:	00008067          	ret
+
+80000540 <release>:
+    // past this point, to ensure that all the stores in the critical
+    // section are visible to other CPUs before the lock is released,
+    // and that loads in the critical section occur strictly before
+    // the lock is released.
+    // On RISC-V, this emits a fence instruction.
+    __sync_synchronize();
+80000540:	0ff0000f          	fence
+    // implies that an assignment might be implemented with
+    // multiple store instructions.
+    // On RISC-V, sync_lock_release turns into an atomic swap:
+    //   s1 = &lk->locked
+    //   amoswap.w zero, zero, (s1)
+    __sync_lock_release(lk);
+80000544:	0f50000f          	fence	iorw,ow
+80000548:	0805202f          	amoswap.w	zero,zero,(a0)
+
+    enable_interrupts();
+8000054c:	b39ff06f          	j	80000084 <enable_interrupts>

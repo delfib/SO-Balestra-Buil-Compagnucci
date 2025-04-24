@@ -1,0 +1,21 @@
+/*****************************************************************************
+ * RISC-V: architecture abstraction layer:
+ *****************************************************************************/
+#pragma once
+
+#include "types.h"
+
+/* symbols (mapped to memory addresses) defined in linker.ld */
+extern char __bss[], __bss_end[], __stack0[], __kernel_end[];
+
+// constants
+#define PAGE_SIZE   4096
+#define NCPU        4       // max cpus
+
+// functions
+int     cpuid(void);
+void    disable_interrupts(void);
+void    enable_interrupts(void);
+
+uint32* init_context(address pc, address* sp);
+void    context_switch(address *current_sp, address *next_sp);

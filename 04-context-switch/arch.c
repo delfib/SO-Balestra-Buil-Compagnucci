@@ -1,0 +1,30 @@
+#include "arch.h"
+
+// Initialize stack context for new task.
+// Setup an initial context (callee saved register values) on stack.
+// Push a saved ra register with pc value (task entry function address).
+// Return the updated stack pointer value.
+uint32* init_task_context(address pc, address* sp)
+{
+    // Stack callee-saved registers. These register values will be restored in
+    // the first context switch in switch_context.
+    *--sp = 0;  // s11
+    *--sp = 0;  // s10
+    *--sp = 0;  // s9
+    *--sp = 0;  // s8
+    *--sp = 0;  // s7
+    *--sp = 0;  // s6
+    *--sp = 0;  // s5
+    *--sp = 0;  // s4
+    *--sp = 0;  // s3
+    *--sp = 0;  // s2
+    *--sp = 0;  // s1
+    *--sp = 0;  // s0
+    *--sp = pc; // ra
+    return sp;
+}
+
+/* This function pushes zeros for all the callee-saved registers (s0 to s11),
+ because we don’t care about their initial value — they’ll be overwritten anyway when the thread runs and uses them.
+ Also the pc is pushed, which is the name of the function of the thread. */
+
