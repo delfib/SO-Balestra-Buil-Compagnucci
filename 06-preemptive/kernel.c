@@ -12,6 +12,8 @@ void task_a(void) {
         for (int i = 0; i < 500000000; i++)
             __asm__ __volatile__("nop");
     }
+
+    sleep(5);
 }
 
 void task_b(void) {

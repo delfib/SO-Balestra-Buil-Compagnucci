@@ -5,6 +5,7 @@
 #define TASK_RUNNABLE   1           // Runnable task
 #define TASK_RUNNING    2           // CPU is running it
 #define TASK_TERMINATED 3           // scheduler should free resources
+#define TASK_SLEEPING   4           // task is sleeping for some amount of ticks
 #define TASK_KSTACKSIZE PAGE_SIZE   // tasks kernel mode stack size
 #define TASK_NAME_LEN   15          // task name max length
 
@@ -15,6 +16,7 @@ struct task {
     int   state;                    // Process state
     vaddr sp;                       // Saved stack pointer
     uint8 kstack[TASK_KSTACKSIZE];  // Kernel stack
+    int wake_up_time;              // wake up time for sleeping task
 };
 
 void         init_tasks();
@@ -23,3 +25,4 @@ void         kill_task(struct task *task);
 struct task* current_task(int cpu);
 void         yield(void);
 void         scheduler(void);
+void         sleep(int sleepTicks);
