@@ -25,6 +25,11 @@ struct task *current_task(int cpu)
     return current_tasks[cpu];
 }
 
+// return the tasks table
+struct task* get_all_tasks(void) {
+    return tasks;
+}
+
 // create task with 'pc' as initial program counter
 struct task *create_task(char *name, uint32 pc)
 {
@@ -125,5 +130,7 @@ void sleep(int sleepTicks)
     task->wake_up_time = ticks + sleepTicks;
     task->state = TASK_SLEEPING;
 
+    printf("Task %d In this moment (%d ticks), i'm going to sleep for %d ticks! ZzZ\n", task->pid, ticks, sleepTicks);
+    
     yield();
 }

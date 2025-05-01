@@ -17,13 +17,14 @@ spinlock console_lock = 0;
 void evaluate_sleeping_tasks()
 {
     acquire(&timer_lock);
-    extern struct task tasks[TASK_MAX];
+    struct task* tasks = get_all_tasks();
     
     for (int i = 0; i < TASK_MAX; i++)
     {
         struct task *current_task = &(tasks[i]);
         if (current_task->state == TASK_SLEEPING && current_task->wake_up_time <= ticks)
         {
+            printf("Task %d is waking up at this moment %d!\n", current_task->pid, ticks);
             current_task->state = TASK_RUNNABLE;
         }
     }

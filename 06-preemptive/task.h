@@ -26,3 +26,4 @@ struct task* current_task(int cpu);
 void         yield(void);
 void         scheduler(void);
 void         sleep(int sleepTicks);
+struct task* get_all_tasks(void);

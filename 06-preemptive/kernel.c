@@ -11,9 +11,9 @@ void task_a(void) {
         // a short delay
         for (int i = 0; i < 500000000; i++)
             __asm__ __volatile__("nop");
+        
+        sleep(5);
     }
-
-    sleep(5);
 }
 
 void task_b(void) {
