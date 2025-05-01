@@ -1,0 +1,5 @@
+*.map
+*.asm
+kernel
+
+output.txt

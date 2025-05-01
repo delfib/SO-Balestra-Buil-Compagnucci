@@ -26,7 +26,8 @@ struct task *current_task(int cpu)
 }
 
 // return the tasks table
-struct task* get_all_tasks(void) {
+struct task *get_all_tasks(void)
+{
     return tasks;
 }
 
@@ -108,7 +109,7 @@ void yield(void)
 {
     int cpu_id = cpuid();
     struct task *task = current_tasks[cpu_id];
-    if (task->state != TASK_TERMINATED)
+    if (task->state != TASK_TERMINATED && task->state != TASK_SLEEPING)
     {
         task->state = TASK_RUNNABLE;
     }
@@ -122,15 +123,21 @@ void kill_task(struct task *task)
     yield();
 }
 
-void sleep(int sleepTicks)
+void sleep(int sleep_ticks)
 {
     int cpu_id = cpuid();
     struct task *task = current_tasks[cpu_id];
 
-    task->wake_up_time = ticks + sleepTicks;
-    task->state = TASK_SLEEPING;
+    // Disable interrupts to avoid race conditions
+    disable_interrupts();
 
-    printf("Task %d In this moment (%d ticks), i'm going to sleep for %d ticks! ZzZ\n", task->pid, ticks, sleepTicks);
-    
+    acquire(&tasks_lock);
+    task->wake_up_time = ticks + sleep_ticks;
+    task->state = TASK_SLEEPING;
+    release(&tasks_lock);
+
     yield();
+
+    // Re-enable interrupts
+    enable_interrupts();
 }

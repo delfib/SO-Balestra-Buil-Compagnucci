@@ -6,7 +6,7 @@
 spinlock timer_lock = 0;
 
 // kernel ticks (incremented in each timer interrupt)
-volatile unsigned long ticks = 0;
+volatile unsigned int ticks = 0;
 
 volatile size_t mstatus = 0;
 volatile size_t mie = 0;
@@ -16,20 +16,24 @@ spinlock console_lock = 0;
 
 void evaluate_sleeping_tasks()
 {
-    acquire(&timer_lock);
-    struct task* tasks = get_all_tasks();
-    
+    struct task *tasks = get_all_tasks();
+
     for (int i = 0; i < TASK_MAX; i++)
     {
         struct task *current_task = &(tasks[i]);
+
+        acquire(&console_lock);
+        printf("Task %s is in state %d\n", current_task->name, current_task->state);
+        release(&console_lock);
+        
         if (current_task->state == TASK_SLEEPING && current_task->wake_up_time <= ticks)
         {
-            printf("Task %d is waking up at this moment %d!\n", current_task->pid, ticks);
+            acquire(&console_lock);
+            printf("Task %s is waking up at this moment %d!\n", current_task->name, ticks);
+            release(&console_lock);
             current_task->state = TASK_RUNNABLE;
         }
     }
-
-    release(&timer_lock);
 }
 
 // high level trap handler. It will be the kernel entry point after boot.
@@ -63,8 +67,10 @@ void trap(struct trap_frame *tf)
         if (cpu_id == 0)
         {
             ticks++;
-            // check if a task is for ready to be woken up ???
             evaluate_sleeping_tasks();
+            acquire(&console_lock);
+            printf("\nticks=%d\n", ticks);
+            release(&console_lock);
         }
         clear_timer_interrupt_pending();
         if (task)
