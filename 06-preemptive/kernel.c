@@ -11,7 +11,6 @@ void task_a(void) {
         // a short delay
         for (int i = 0; i < 500000000; i++)
             __asm__ __volatile__("nop");
-            
     }
 }
 
@@ -26,23 +25,11 @@ void task_b(void) {
     }
 }
 
-void task_c(void) {
-    while (true) {
-        int cpu = cpuid();
-        printf("Task C in cpu %d \n", cpu);
-
-        // a shot delay
-        for (int i = 0; i < 400000000; i++)
-            __asm__ __volatile__("nop");
-    }
-}
-
 void kernel_main(void) {
     enable_interrupts();
     if (cpuid() == 0) {
         create_task("A", (uint32) task_a);
         create_task("B", (uint32) task_b);
-        create_task("C", (uint32) task_c);
     }
 
     // all cpus running in scheduler()
