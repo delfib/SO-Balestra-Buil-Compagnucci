@@ -43,6 +43,7 @@ void trap(struct trap_frame *tf)
         case TIMER_INTERRUPT:
             if (cpu_id == 0) {
                 ticks++;
+                update_sleeping_tasks();
             }
             clear_timer_interrupt_pending();
             if (task) {

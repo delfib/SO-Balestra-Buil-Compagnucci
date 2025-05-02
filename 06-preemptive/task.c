@@ -11,7 +11,7 @@ static struct task tasks[TASK_MAX];
 static spinlock tasks_lock = 0;
 
 // Current task pointers (per cpu)
-static struct task* current_tasks[NCPU];
+static struct task *current_tasks[NCPU];
 
 // scheduler stack pointer
 static uint32 scheduler_sp[NCPU];
@@ -20,19 +20,22 @@ static uint32 scheduler_sp[NCPU];
 static uint32 last_pid = 0;
 
 // return current_task in give cpu
-struct task * current_task(int cpu)
+struct task *current_task(int cpu)
 {
     return current_tasks[cpu];
 }
 
 // create task with 'pc' as initial program counter
-struct task* create_task(char *name, uint32 pc) {
+struct task *create_task(char *name, uint32 pc)
+{
     // Find an unused process control structure.
     struct task *task = NULL;
     int i;
     acquire(&tasks_lock);
-    for (i = 0; i < TASK_MAX; i++) {
-        if (tasks[i].state == TASK_UNUSED) {
+    for (i = 0; i < TASK_MAX; i++)
+    {
+        if (tasks[i].state == TASK_UNUSED)
+        {
             task = &(tasks[i]);
             break;
         }
@@ -41,20 +44,21 @@ struct task* create_task(char *name, uint32 pc) {
     if (!task)
         panic("no free tasks slots\n");
 
-    uint32* stack_bottom = (uint32 *)(task->kstack + TASK_KSTACKSIZE);
+    uint32 *stack_bottom = (uint32 *)(task->kstack + TASK_KSTACKSIZE);
 
     // Initialize fields on task structure.
-    task->sp = (vaddr) init_context(pc, stack_bottom);
+    task->sp = (vaddr)init_context(pc, stack_bottom);
     task->pid = ++last_pid;
     if (strlen(name) > TASK_NAME_LEN)
         name[TASK_NAME_LEN] = '\0';
     strcpy(task->name, name);
     task->state = TASK_RUNNABLE;
+    task->ticks = 0;
     release(&tasks_lock);
     return task;
 }
 
-static void destroy_task(struct task * task)
+static void destroy_task(struct task *task)
 {
     // free slot
     task->state = TASK_UNUSED;
@@ -65,11 +69,14 @@ void scheduler(void)
 {
     int cpu_id = cpuid();
 
-    while (1) {
+    while (1)
+    {
         current_tasks[cpu_id] = NULL;
-        for (int i=0; i<TASK_MAX; i++) {
+        for (int i = 0; i < TASK_MAX; i++)
+        {
             acquire(&tasks_lock);
-            if (tasks[i].state == TASK_RUNNABLE) {        
+            if (tasks[i].state == TASK_RUNNABLE)
+            {
                 struct task *next_task = &(tasks[i]);
 
                 // task runnable found: context switch
@@ -77,12 +84,15 @@ void scheduler(void)
                 current_tasks[cpu_id] = next_task;
                 release(&tasks_lock);
                 // resume next task
-                enable_interrupts();  // needed only for kernel tasks
+                enable_interrupts(); // needed only for kernel tasks
                 context_switch(&(scheduler_sp[cpu_id]), &(next_task->sp));
-                if (next_task->state == TASK_TERMINATED) {
+                if (next_task->state == TASK_TERMINATED)
+                {
                     destroy_task(next_task);
                 }
-            } else {
+            }
+            else
+            {
                 release(&tasks_lock);
             }
         }
@@ -94,15 +104,57 @@ void yield(void)
 {
     int cpu_id = cpuid();
     struct task *task = current_tasks[cpu_id];
-    if (task->state != TASK_TERMINATED) {
+    if (task->state != TASK_TERMINATED && task->state != TASK_SLEEPING)
+    {
         task->state = TASK_RUNNABLE;
     }
     // CPU leaves current task, resume scheduler
     context_switch(&(task->sp), &(scheduler_sp[cpu_id]));
 }
 
-void  kill_task(struct task *task)
+void kill_task(struct task *task)
 {
     task->state = TASK_TERMINATED;
     yield();
+}
+
+void sleep(int sleep_ticks)
+{
+    int cpu_id = cpuid();
+    struct task *task = current_tasks[cpu_id];
+
+    acquire(&tasks_lock);
+
+    task->ticks = sleep_ticks;
+    task->state = TASK_SLEEPING;
+
+    printf("Task %s is going to sleep at this moment %d for these many ticks: %d\n", task->name, ticks, task->ticks);
+
+    release(&tasks_lock);
+
+    yield();
+}
+
+void update_sleeping_tasks()
+{
+    for (int i = 0; i < TASK_MAX; i++)
+    {
+        acquire(&tasks_lock);
+        struct task *current_task = &(tasks[i]);
+        
+        if (current_task->state == TASK_SLEEPING)
+        {
+            current_task->ticks--;
+            if (current_task->ticks == 0)
+            {
+                current_task->state = TASK_RUNNABLE;
+                printf("Task %s is waking up at this moment %d! Its ticks: %d\n", current_task->name, ticks, current_task->ticks);
+            }
+            release(&tasks_lock);
+        }
+        else
+        {
+            release(&tasks_lock);
+        }
+    }
 }

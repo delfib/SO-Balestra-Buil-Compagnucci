@@ -8,6 +8,8 @@ void task_a(void) {
         printf("Task A in cpu %d \n", cpu);
         // invalid_instruction();
 
+        sleep(3);
+
         // a short delay
         for (int i = 0; i < 500000000; i++)
             __asm__ __volatile__("nop");
