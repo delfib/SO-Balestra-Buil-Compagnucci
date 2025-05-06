@@ -150,11 +150,7 @@ void check_and_wake_sleeping_tasks()
                 current_task->ticks = 0;
                 current_task->state = TASK_RUNNABLE;
             }
-            release(&tasks_lock);
-        }
-        else
-        {
-            release(&tasks_lock);
         }
     }
+    release(&tasks_lock);
 }
