@@ -5,6 +5,7 @@
 
 // ticks (number of clock interrupts), defined in trap.c
 extern unsigned int ticks;
+extern spinlock console_lock;
 
 // tasks/processes table
 static struct task tasks[TASK_MAX];
@@ -104,7 +105,7 @@ void yield(void)
 {
     int cpu_id = cpuid();
     struct task *task = current_tasks[cpu_id];
-    if (task->state == TASK_RUNNING)
+    if (task->state != TASK_TERMINATED && task->state != TASK_SLEEPING)
     {
         task->state = TASK_RUNNABLE;
     }
@@ -128,7 +129,9 @@ void sleep(int sleep_ticks)
     task->ticks = sleep_ticks;
     task->state = TASK_SLEEPING;
 
+    acquire(&console_lock);
     printf("Task %s is going to sleep at this moment %d for these many ticks: %d\n", task->name, ticks, task->ticks);
+    release(&console_lock);
 
     release(&tasks_lock);
 
@@ -145,10 +148,14 @@ void check_and_wake_sleeping_tasks()
         if (current_task->state == TASK_SLEEPING)
         {
             current_task->ticks--;
-            if (current_task->ticks == 0)
+            if (current_task->ticks <= 0)
             {
                 current_task->ticks = 0;
                 current_task->state = TASK_RUNNABLE;
+
+                acquire(&console_lock);
+                printf("Task %s is waking up at this moment %d!\n", current_task->name, ticks);
+                release(&console_lock);
             }
         }
     }

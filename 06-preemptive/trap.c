@@ -43,9 +43,9 @@ void trap(struct trap_frame *tf)
         case TIMER_INTERRUPT:
             if (cpu_id == 0) {
                 ticks++;
+                check_and_wake_sleeping_tasks();
             }
 
-            check_and_wake_sleeping_tasks();
             clear_timer_interrupt_pending();
             
             if (task) {

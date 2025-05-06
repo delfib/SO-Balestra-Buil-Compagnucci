@@ -219,9 +219,11 @@ m_trap:
     sw      a6, 6 * 4 (sp)
     sw      a7, 7 * 4 (sp)
 
+    mv      a7, ra
     # schedule the next timer interrupt: timer_interrupt(cpu_id)
     mv      a0, tp
     call    next_timer_interrupt
+    mv      ra, a7
 
     # restore saved registers and set stack values with zeroes
     lw      a0, 0 * 4 (sp)
