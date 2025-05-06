@@ -104,7 +104,7 @@ void yield(void)
 {
     int cpu_id = cpuid();
     struct task *task = current_tasks[cpu_id];
-    if (task->state != TASK_TERMINATED && task->state != TASK_SLEEPING)
+    if (task->state == TASK_RUNNING)
     {
         task->state = TASK_RUNNABLE;
     }
@@ -121,8 +121,8 @@ void kill_task(struct task *task)
 void sleep(int sleep_ticks)
 {
     int cpu_id = cpuid();
-    struct task *task = current_tasks[cpu_id];
-
+    struct task *task = current_task(cpu_id);
+    
     acquire(&tasks_lock);
 
     task->ticks = sleep_ticks;
@@ -135,11 +135,11 @@ void sleep(int sleep_ticks)
     yield();
 }
 
-void update_sleeping_tasks()
+void check_and_wake_sleeping_tasks()
 {
+    acquire(&tasks_lock);
     for (int i = 0; i < TASK_MAX; i++)
     {
-        acquire(&tasks_lock);
         struct task *current_task = &(tasks[i]);
         
         if (current_task->state == TASK_SLEEPING)
@@ -147,8 +147,8 @@ void update_sleeping_tasks()
             current_task->ticks--;
             if (current_task->ticks == 0)
             {
+                current_task->ticks = 0;
                 current_task->state = TASK_RUNNABLE;
-                printf("Task %s is waking up at this moment %d! Its ticks: %d\n", current_task->name, ticks, current_task->ticks);
             }
             release(&tasks_lock);
         }

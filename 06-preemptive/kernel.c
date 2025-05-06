@@ -21,6 +21,8 @@ void task_b(void) {
         int cpu = cpuid();
         printf("Task B in cpu %d \n", cpu);
 
+        sleep(4);
+
         // a shot delay
         for (int i = 0; i < 300000000; i++)
             __asm__ __volatile__("nop");

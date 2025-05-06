@@ -27,4 +27,4 @@ void         yield(void);
 void         scheduler(void);
 
 void         sleep(int sleep_ticks);
-void         update_sleeping_tasks();
+void         check_and_wake_sleeping_tasks();
