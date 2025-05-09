@@ -12,27 +12,29 @@ extern char __bss[], __bss_end[], __stack0[], __kernel_end[];
 #define PAGE_SIZE   4096
 #define NCPU        4       // max cpus
 
-// interrupt/exception cause codes 
+// interrupt/exception/traps cause codes 
 #define ILLEGAL_INSTRUCTION 0x00000002
 #define TIMER_INTERRUPT     0x80000001
 #define SYSCALL             0x0000000b
 
 // core local interruptor (CLINT), which contains the timer.
 #define CLINT 0x02000000L
+// MTIME register: cycles since boot. Shared by all harts.
+#define CLINT_MTIME (CLINT + 0xBFF8)
+// MTIMECMP register (one per hart)
 #define CLINT_MTIMECMP(hartid) (CLINT + 0x4000 + 8*(hartid))
-#define CLINT_MTIME (CLINT + 0xBFF8)    // cycles since boot.
-#define T_INTERVAL 5000000              // about 5/10th of second in QEMU
+
+#define T_INTERVAL 5000000  // about 5/10th of second in QEMU
 
 // defined in arch.c
-uint32* init_context(uint32 pc, uint32* sp);
-void    next_timer_interrupt(int cpu_id);
-void    push_irq_off(void);
-void    pop_irq_off(void);
+address init_context(address pc, address* sp);
+void next_timer_interrupt(int cpu_id);
 
 // defined in arch.s
-void    context_switch(uint32 *prev_sp, uint32 *next_sp);
+void context_switch(address* current_sp, address* next_sp);
 
 // structure of saved cpu state on stack by the low-level trap handler
+// It should be in sync with low level trap handler (s_trap) in arch.s.
 struct trap_frame {
     size_t ra;
     size_t gp;
@@ -118,7 +120,7 @@ static inline bool irq_enabled(void)
 {
     size_t v;
     __asm__ __volatile__ ("csrr %0, sstatus" : "=r" (v) );
-    return v & 0x2;
+    return (v & 0x2) != 0;
 }
 
 // skip instruction
@@ -133,7 +135,7 @@ static inline void skip_instruction(void)
 }
 
 // ack timer interrupt from S-mode by clearing sip.SSIP
-static inline void clear_timer_interrupt_pending(void)
+static inline void ack_timer_interrupt(void)
 {
     __asm__ __volatile__ ("csrci sip, 2");
 }

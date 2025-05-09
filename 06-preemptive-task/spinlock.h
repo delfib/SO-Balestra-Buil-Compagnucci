@@ -2,7 +2,7 @@
 
 #pragma once
 
-typedef volatile unsigned int spinlock;
+typedef unsigned int spinlock;
 
 void acquire(spinlock *lk);
 void release(spinlock *lk);

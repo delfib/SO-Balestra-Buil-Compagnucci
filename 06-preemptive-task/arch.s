@@ -19,13 +19,8 @@ boot:
     mul t0, t0, t1      # t0 = 4096 * (mhartid + 1)
     add sp, sp, t0      # sp = sp + (4096 * (mhartid + 1))
 
-    # Load address of 'supervisor' into t0 and set mepc
-    la      t0, supervisor
-    csrw    mepc, t0
-
-    # Set mtvec with m_trap address
-    la      t1, m_trap
-    csrw    mtvec, t1
+    # Disable virtual memory for now
+    csrw    satp, x0
 
     # Set up PMP to allow S-mode and U-mode full access to memory
     li      t5, 0x1F               # NAPOT + R/W/X permissions
@@ -33,7 +28,7 @@ boot:
     li      t6, -1                 # All ones to cover entire address space
     csrw    pmpaddr0, t6           # Write to pmpaddr0
 
-    # Correctly set MPP to Supervisor Mode
+    # Set mstatus.MPP to Supervisor Mode
     csrr    t2, mstatus            # Read mstatus into t2
     li      t3, ~(0x3 << 11)       # Mask to clear MPP bits
     and     t2, t2, t3             # Clear MPP bits
@@ -54,21 +49,29 @@ boot:
     li      t5, (1 << 9) | (1 << 5) | (1 << 1)
     csrs    sie, t5
 
-    # setup next timer interrupt
+    # schedule next timer interrupt: next_timer_interrupt(hartid)
     mv      a0, tp
     call    next_timer_interrupt
 
-    # enable M-mode interrupts: set mstatus.SIE, mstatus.MIE and mie.MTIE bits
-    li     t5, (1 << 2) | (1 << 3) | (1 << 7)
+    # enable M-mode interrupts: set mstatus.MIE
+    li     t5, (1 << 3)
+    csrs   mstatus, t5
+    # and mie.MTIE bit
+    li     t5, (1 << 7)
     csrs   mie, t5
+
+    # Set mtvec with m_trap address to trap timer interrupts
+    la      t5, m_trap
+    csrw    mtvec, t5
+
+    # Return to S-mode to "supervisor" code (defined below)
+    la      t0, supervisor
+    csrw    mepc, t0
 
     mret
 
 # supervisor entry point (after mret)
 supervisor:
-    # Disable virtual memory by setting satp to zero
-    csrw    satp, x0
-
     # set S-mode trap handler
     la      t1, s_trap
     csrw    stvec, t1
@@ -128,7 +131,7 @@ context_switch:
 
 # S-mode trap handler. It calls to trap(struct trap_frame *tf) in trap.c
 s_trap:
-    # save cpu registers in same order as defined in struct trap_handler
+    # save cpu registers in same order as defined in struct trapframe
     addi    sp, sp, -30 * 4
     sw      ra, 0 * 4 (sp)
     sw      gp, 1 * 4 (sp)
@@ -219,29 +222,25 @@ m_trap:
     sw      a6, 6 * 4 (sp)
     sw      a7, 7 * 4 (sp)
 
+    # save in a7 the value of ra (it will be changed in next call)
     mv      a7, ra
+
     # schedule the next timer interrupt: timer_interrupt(cpu_id)
     mv      a0, tp
     call    next_timer_interrupt
+
+    # restore ra
     mv      ra, a7
 
-    # restore saved registers and set stack values with zeroes
+    # restore saved registers
     lw      a0, 0 * 4 (sp)
-    sw      x0, 0 * 4 (sp)
     lw      a1, 1 * 4 (sp)
-    sw      x0, 1 * 4 (sp)
     lw      a2, 2 * 4 (sp)
-    sw      x0, 2 * 4 (sp)
     lw      a3, 3 * 4 (sp)
-    sw      x0, 3 * 4 (sp)
     lw      a4, 4 * 4 (sp)
-    sw      x0, 4 * 4 (sp)
     lw      a5, 5 * 4 (sp)
-    sw      x0, 5 * 4 (sp)
     lw      a6, 6 * 4 (sp)
-    sw      x0, 6 * 4 (sp)
     lw      a7, 7 * 4 (sp)
-    sw      x0, 7 * 4 (sp)
     addi    sp, sp, 8 * 4
 
     # set timer interrupt pending bit in sip.

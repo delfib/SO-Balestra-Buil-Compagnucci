@@ -1,5 +1,27 @@
 #include "spinlock.h"
 #include "arch.h"
+#include "task.h"
+
+// Disable interrupts and count nested calls
+void push_irq_off(void)
+{
+    bool old = irq_enabled();
+    int cpu_id = cpuid();
+
+    disable_interrupts();
+    if (cpus_state[cpu_id].noff == 0) {
+        cpus_state[cpu_id].enabled = old;
+    }
+    cpus_state[cpu_id].noff++;
+}
+
+void pop_irq_off(void)
+{
+    int cpu_id = cpuid();
+    if (--cpus_state[cpu_id].noff == 0 && cpus_state[cpu_id].enabled) {
+        enable_interrupts();
+    }
+}
 
 void acquire(spinlock *lk)
 {

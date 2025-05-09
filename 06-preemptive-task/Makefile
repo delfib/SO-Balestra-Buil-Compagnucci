@@ -24,8 +24,8 @@ kernel: *.s *.c
 # Start QEMU. Firmware will load kernel binary at 0x80200000 and jump there.
 qemu: kernel
 	$(QEMU) -machine virt -bios none -nographic \
-	        --no-reboot -smp 2 -kernel kernel
+	        --no-reboot -smp 1 -kernel kernel
 
 # clean generated files
 clean:
-	rm kernel.map kernel.asm kernel
+	rm kernel.map *.asm kernel

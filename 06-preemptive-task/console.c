@@ -6,7 +6,7 @@
 #define UART_LSR    (uint8*)(UART+0x05)
 #define UART_STATUS_EMPTY 0x40
 
-static spinlock console_lock = 0;
+spinlock console_lock = 0;
 
 int console_putc(char ch) 
 {
@@ -17,7 +17,7 @@ int console_putc(char ch)
 	return *UART_THR = ch;
 }
 
-// write string to console
+// write string to console with sync
 void console_puts(const char *s) 
 {
     acquire(&console_lock);

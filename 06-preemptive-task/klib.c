@@ -52,6 +52,7 @@ inline void putchar(char c)
 void printf(const char *fmt, ...) {
     va_list vargs;
     va_start(vargs, fmt);
+    acquire(&console_lock);
     while (*fmt) {
         if (*fmt == '%') {
             fmt++;
@@ -105,5 +106,6 @@ void printf(const char *fmt, ...) {
     }
 
 end:
+    release(&console_lock);
     va_end(vargs);
 }
