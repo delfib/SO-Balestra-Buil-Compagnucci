@@ -36,12 +36,12 @@ void trap(struct trap_frame *tf)
     }
 
     // yield the CPU if current task is running in this cpu
-    if (task && task == cpus_state[cpu_id].task && task->state == RUNNING)
-    {
-        if (--task->ticks == 0)
+    if (task && task == cpus_state[cpu_id].task && task->state == RUNNING) {
+        if (--task->quantum_ticks == 0) {
+            printf("The quantum of task %s in CPU is over!\n", task->name, cpu_id);
             yield();
+        }
     }
-
 
     // the yield() may have caused some traps to occur,
     // so restore trap address and cpu status.

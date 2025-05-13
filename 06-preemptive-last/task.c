@@ -78,7 +78,7 @@ void scheduler(void)
                 struct task* next_task = &tasks[i];
                 next_task->state = RUNNING;
                 next_task->cpu_id = cpu_id;
-                next_task->ticks = QUANTUM;
+                next_task->quantum_ticks = QUANTUM;
                 cpus_state[cpu_id].task = next_task;
 
                 // switch to next_task (continue task execution)
