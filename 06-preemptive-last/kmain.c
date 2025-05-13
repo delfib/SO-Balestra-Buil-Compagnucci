@@ -9,7 +9,7 @@ void task_a(void) {
     init_task();
     while (true) {
         int cpu = cpuid();
-        printf("Task %s in cpu %d \n", current->name, cpu);
+        printf("Task %s in cpu %d | Quantum: %d ticks\n", current->name, cpu, current->ticks);
         // invalid_instruction();
 
         // a short delay

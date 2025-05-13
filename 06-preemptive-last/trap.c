@@ -37,7 +37,11 @@ void trap(struct trap_frame *tf)
 
     // yield the CPU if current task is running in this cpu
     if (task && task == cpus_state[cpu_id].task && task->state == RUNNING)
-        yield();
+    {
+        if (--task->ticks == 0)
+            yield();
+    }
+
 
     // the yield() may have caused some traps to occur,
     // so restore trap address and cpu status.

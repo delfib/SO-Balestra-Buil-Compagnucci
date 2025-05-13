@@ -6,6 +6,8 @@
 
 #define TASK_MAX  16    // Maximum number of tasks
 
+#define QUANTUM   5     // Number of ticks for each task quantum
+
 // task state
 #define UNUSED     0    // Unused task/process control structure
 #define RUNNABLE   1    // Runnable task
@@ -25,6 +27,7 @@ struct task {
     int            cpu_id;              // CPU in which this task is running
     void*          wait_condition;      // Waiting condition
     spinlock       lock;                // lock for task
+    int            ticks;               // ticks for this task
 };
 
 // CPU state
