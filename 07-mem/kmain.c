@@ -38,15 +38,19 @@ void task_b(void) {
     // 2: explain why this happens
     char *va = (char*) 0x1000;
     paddr pa = alloc_page();
+
+    printf("btask: allocated page at %x\n", pa);
     
     // to do: map va to pa physical address here and test again
-    
+    map_page(btask->pgtbl, (vaddr) va, pa, PAGE_R | PAGE_W);
+
     va[0] = 'B'; // (*) page fault here
 
     printf("Task B contents at va 0x1000: %s\n", va);
 
     // unmap the page
-    unmap_page(btask->pgtbl, va, true);
+    unmap_page(btask->pgtbl, (vaddr) va, false);
+    free_page((void *) pa);
 
     printf("Task B in cpu %d... exiting.\n", cpuid());
     terminate(0);

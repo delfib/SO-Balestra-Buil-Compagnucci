@@ -52,8 +52,7 @@ static pte* get_pte(pte* pgtbl, vaddr va, bool create_leaf)
     }
     // get 2nd level node physical address
     pte* pg0 = (pte*) pte_pa(pgtbl[i]);
-    // return pte address
-    return &pg0[va_index0(va)];
+    return pg0 ? &pg0[va_index0(va)] : 0;
 }
 
 // map the virtual address va to physical address in a page table
@@ -65,9 +64,18 @@ void map_page(pte* pgtbl, vaddr va, paddr pa, uint flags)
 
 // unmap a page in a page table. If free == true, it should free the
 // corresponding physical page 
-void unmap_page(pte* pt, vaddr va, bool free)
+void unmap_page(pte *pgtbl, vaddr va, bool free)
 {
-    // to do
+    pte *entry = get_pte(pgtbl, va, false);
+    if (entry && *entry && PAGE_V)
+    {
+        paddr pa = pte_pa(*entry);
+        if (free)
+        {
+            free_page((void *) pa);
+        }
+    }
+    *entry = 0;
 }
 
 // map kernel memory layout. 1:1 mappings

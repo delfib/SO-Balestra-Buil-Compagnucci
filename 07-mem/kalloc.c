@@ -37,6 +37,8 @@ void free_page(void* pa)
     n->next = free_list;
     free_list = n;
     free_pages++;
+    
+    printf("Page %x free!\n", pa);
 }
 
 // build free pages linked list

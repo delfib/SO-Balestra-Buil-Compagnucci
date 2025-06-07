@@ -53,6 +53,9 @@ In `kmain.c` task A waits for task B to finish.
 
 1. Task B produce a page fault (see `kmain.c`) by trying to use the virtual
    address 0x1000. Run the program and explain why it happens. Explain the trap cause.
+
+
+
 2. Fix the code in `task_b()` function to get a valid 0x1000 virtual address.
    Now, the OS should run without page faults and you should get the output `Task B contents at va 0x1000: B`.
 3. Complete `unmap_page()` function implementation in `arch.c` and verify it
