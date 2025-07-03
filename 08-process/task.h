@@ -5,6 +5,13 @@
 #define QUANTUM         2
 #define TASK_NAME_LEN  81
 #define TASK_MAX       16    // Maximum number of tasks
+#define NSEM_PROC       8     // Maximum number of semaphores per process
+
+// Forward declaration for semaphore structure
+struct proc_sem {
+    int             sem_id;       // Semaphore ID
+    bool            used;         // Is this slot used?
+};
 
 // task state
 #define UNUSED     0    // Unused task/process control structure
@@ -36,6 +43,7 @@ struct task {
     void*             wait_condition;      // Waiting condition
     pte*              pgtbl;               // Page table
     spinlock          lock;                // lock for task
+    struct proc_sem   proc_sems[NSEM_PROC];// Per-process semaphore table
 };
 
 // CPU state

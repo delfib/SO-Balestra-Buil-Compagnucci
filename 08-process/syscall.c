@@ -2,6 +2,7 @@
 #include "task.h"
 #include "syscall.h"
 #include "console.h"
+#include "sem.h"
 
 // exit(exit_code)
 int sys_exit(struct task *task)
@@ -66,7 +67,12 @@ static syscall_f syscalls_table[SYSCALLS] = {
     sys_console_puts,
     sys_console_putc,
     sys_console_getc,
-    sys_sleep
+    sys_sleep,
+    sys_semcreate,
+    sys_semget,
+    sys_sem_wait,
+    sys_sem_signal,
+    sys_sem_close
 };
 
 // Syscall dispatcher. Call the syscall and store result in trap frame

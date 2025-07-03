@@ -4,6 +4,7 @@
 #include "kalloc.h"
 #include "vm.h"
 #include "efs.h"
+#include "sem.h"
 
 static volatile int ready = 0;
 
@@ -12,6 +13,7 @@ void kernel_main(void) {
     if (cpu_id == 0) {
         init_kalloc();
         init_vm();
+        init_semaphores();
 
         create_process("init");
         // init_external_interrupts();
